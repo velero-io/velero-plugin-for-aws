@@ -46,4 +46,12 @@ spec:
     #
     # Optional.
     ebsKmsKeyId: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+
+    # The AWS Outpost ARN for creating snapshots and volumes on AWS Outposts.
+    # When specified, snapshots will be created on the Outpost, and volumes
+    # restored from snapshots will also be created on the Outpost.
+    # Format: arn:aws:outposts:<region>:<account>:outpost/<outpost-id>
+    #
+    # Optional (required only for AWS Outposts deployments).
+    outpostArn: "arn:aws:outposts:us-east-1:010438487213:outpost/op-00b39366a6946ab39"
 ```

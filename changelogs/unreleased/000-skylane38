@@ -1,0 +1,1 @@
+Add support for EBS snapshots and volume restoration on AWS Outposts via `outpostArn` parameter in VolumeSnapshotLocation configuration.
