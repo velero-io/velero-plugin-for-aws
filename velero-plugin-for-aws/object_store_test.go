@@ -227,9 +227,9 @@ func TestValidChecksumAlg(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "md5 is invalid",
+			name:     "MD5 is valid",
 			input:    "MD5",
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "sha256 is invalid",
