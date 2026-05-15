@@ -55,7 +55,7 @@ jobs:
 
     # Only try to publish the container image from the root repo; forks don't have permission to do so and will always get failures.
     - name: Publish container image
-      if: github.repository == 'vmware-tanzu/velero-plugin-for-aws'
+      if: github.repository == 'velero-io/velero-plugin-for-aws'
       run: |
         docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
         # Call `docker-push.sh` to push the velero-plugin-for-aws image to docker hub.
