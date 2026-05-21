@@ -393,3 +393,78 @@ func TestCreateSignedURL_NoSSECWhenNotConfigured(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https://example.com/signed", url)
 }
+
+func TestBuildPutObjectInput(t *testing.T) {
+	tests := []struct {
+		name                       string
+		store                      *ObjectStore
+		expectTagging              *string
+		expectChecksumAlg          types.ChecksumAlgorithm
+		expectSSE                  types.ServerSideEncryption
+		expectSSEKMSKeyId          *string
+		expectSSECustomerAlgorithm *string
+		expectSSECustomerKey       *string
+		expectSSECustomerKeyMD5    *string
+	}{
+		{
+			// Regression guard: empty tagging config must NOT set
+			// PutObjectInput.Tagging. Passing aws.String("") here causes
+			// the SDK to serialize an empty `x-amz-tagging` header that
+			// Backblaze B2 (and other S3-compatible backends) reject with
+			// HTTP 400 InvalidArgument "Unsupported header".
+			name:          "empty config: no Tagging, no SSE, no checksum",
+			store:         &ObjectStore{log: newLogger()},
+			expectTagging: nil,
+		},
+		{
+			name:          "non-empty tagging config: Tagging is set",
+			store:         &ObjectStore{log: newLogger(), tagging: "Key1=Value1&Key2=Value2"},
+			expectTagging: aws.String("Key1=Value1&Key2=Value2"),
+		},
+		{
+			name:              "checksumAlgorithm CRC32: ChecksumAlgorithm is set",
+			store:             &ObjectStore{log: newLogger(), checksumAlg: "CRC32"},
+			expectChecksumAlg: types.ChecksumAlgorithmCrc32,
+		},
+		{
+			name:              "kmsKeyID set: SSE switches to aws:kms with the key ID",
+			store:             &ObjectStore{log: newLogger(), kmsKeyID: "arn:aws:kms:us-east-1:123:key/abc"},
+			expectSSE:         "aws:kms",
+			expectSSEKMSKeyId: aws.String("arn:aws:kms:us-east-1:123:key/abc"),
+		},
+		{
+			name: "sseCustomerKey set: SSE-C fields are populated",
+			store: &ObjectStore{
+				log:               newLogger(),
+				sseCustomerKey:    "raw-customer-key",
+				sseCustomerKeyMd5: "raw-customer-key-md5",
+			},
+			expectSSECustomerAlgorithm: aws.String("AES256"),
+			expectSSECustomerKey:       aws.String("raw-customer-key"),
+			expectSSECustomerKeyMD5:    aws.String("raw-customer-key-md5"),
+		},
+		{
+			name:      "serverSideEncryption set without kms/sse-c: ServerSideEncryption is set",
+			store:     &ObjectStore{log: newLogger(), serverSideEncryption: "AES256"},
+			expectSSE: types.ServerSideEncryptionAes256,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			input := tc.store.buildPutObjectInput("bucket", "key", nil)
+
+			require.NotNil(t, input)
+			assert.Equal(t, aws.String("bucket"), input.Bucket)
+			assert.Equal(t, aws.String("key"), input.Key)
+
+			assert.Equal(t, tc.expectTagging, input.Tagging, "Tagging mismatch")
+			assert.Equal(t, tc.expectChecksumAlg, input.ChecksumAlgorithm, "ChecksumAlgorithm mismatch")
+			assert.Equal(t, tc.expectSSE, input.ServerSideEncryption, "ServerSideEncryption mismatch")
+			assert.Equal(t, tc.expectSSEKMSKeyId, input.SSEKMSKeyId, "SSEKMSKeyId mismatch")
+			assert.Equal(t, tc.expectSSECustomerAlgorithm, input.SSECustomerAlgorithm, "SSECustomerAlgorithm mismatch")
+			assert.Equal(t, tc.expectSSECustomerKey, input.SSECustomerKey, "SSECustomerKey mismatch")
+			assert.Equal(t, tc.expectSSECustomerKeyMD5, input.SSECustomerKeyMD5, "SSECustomerKeyMD5 mismatch")
+		})
+	}
+}
