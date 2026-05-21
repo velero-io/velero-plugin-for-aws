@@ -1,0 +1,1 @@
+Fix Velero backups failing on Backblaze B2 (and other S3-compatible backends that reject an empty `x-amz-tagging` header) by only setting `PutObjectInput.Tagging` when the BSL `tagging` config is non-empty.
