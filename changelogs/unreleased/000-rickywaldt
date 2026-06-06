@@ -1,0 +1,1 @@
+Fix x-amz-tagging header being sent with empty value, breaking S3-compatible providers such as Cloudflare R2 (HTTP 501 NotImplemented).

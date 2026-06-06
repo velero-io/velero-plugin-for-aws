@@ -338,7 +338,10 @@ func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
 		Bucket:  aws.String(bucket),
 		Key:     aws.String(key),
 		Body:    body,
-		Tagging: aws.String(o.tagging),
+	}
+
+	if o.tagging != "" {
+		input.Tagging = aws.String(o.tagging)
 	}
 
 	switch {
