@@ -74,11 +74,15 @@ type s3PresignInterface interface {
 	PresignGetObject(ctx context.Context, input *s3.GetObjectInput, optFns ...func(options *s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
+type s3UploaderInterface interface {
+	Upload(ctx context.Context, input *s3.PutObjectInput, optFns ...func(*manager.Uploader)) (*manager.UploadOutput, error)
+}
+
 type ObjectStore struct {
 	log                  logrus.FieldLogger
 	s3                   s3Interface
 	preSignS3            s3PresignInterface
-	s3Uploader           *manager.Uploader
+	s3Uploader           s3UploaderInterface
 	kmsKeyID             string
 	sseCustomerKey       string
 	sseCustomerKeyMd5    string
@@ -335,10 +339,18 @@ func readCustomerKeyFromSecret(secretRef string) (string, error) {
 
 func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
 	input := &s3.PutObjectInput{
-		Bucket:  aws.String(bucket),
-		Key:     aws.String(key),
-		Body:    body,
-		Tagging: aws.String(o.tagging),
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   body,
+	}
+	// Only set Tagging when tags are actually configured. A non-nil empty
+	// Tagging value is serialized by the AWS SDK as an `x-amz-tagging`
+	// header, which strictly S3-compatible providers that do not support
+	// object tagging (e.g. Backblaze B2) reject with:
+	//   InvalidArgument: Unsupported header 'x-amz-tagging' received for this API call.
+	// That fails every backup at the final velero-backup.json upload.
+	if o.tagging != "" {
+		input.Tagging = aws.String(o.tagging)
 	}
 
 	switch {

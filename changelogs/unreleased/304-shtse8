@@ -1,0 +1,1 @@
+Fix: omit the PutObject Tagging field when no tags are configured, so strictly S3-compatible object stores that reject the `x-amz-tagging` header (e.g. Backblaze B2) can be used as backup storage.
