@@ -18,11 +18,13 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
@@ -37,6 +39,15 @@ type mockS3 struct {
 
 type mockS3Presign struct {
 	mock.Mock
+}
+
+type mockS3Uploader struct {
+	mock.Mock
+}
+
+func (m *mockS3Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, optFns ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
+	args := m.Called(ctx, input)
+	return args.Get(0).(*manager.UploadOutput), args.Error(1)
 }
 
 func (m *mockS3Presign) PresignGetObject(ctx context.Context, input *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
@@ -62,6 +73,50 @@ func (m *mockS3) ListObjectsV2(ctx context.Context, input *s3.ListObjectsV2Input
 func (m *mockS3) DeleteObject(ctx context.Context, input *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
 	args := m.Called(ctx, input)
 	return args.Get(0).(*s3.DeleteObjectOutput), args.Error(1)
+}
+
+func TestPutObjectTagging(t *testing.T) {
+	tests := []struct {
+		name            string
+		configuredTags  string
+		expectedTagging *string
+	}{
+		{
+			name: "omits empty tagging",
+		},
+		{
+			name:            "preserves configured tagging",
+			configuredTags:  "key=value",
+			expectedTagging: aws.String("key=value"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			uploader := new(mockS3Uploader)
+			defer uploader.AssertExpectations(t)
+
+			o := &ObjectStore{
+				log:        newLogger(),
+				s3Uploader: uploader,
+				tagging:    tc.configuredTags,
+			}
+
+			uploader.On("Upload", context.Background(), mock.MatchedBy(func(input *s3.PutObjectInput) bool {
+				if aws.ToString(input.Bucket) != "bucket" || aws.ToString(input.Key) != "key" || input.Body == nil {
+					return false
+				}
+				if tc.expectedTagging == nil {
+					return input.Tagging == nil
+				}
+				return input.Tagging != nil && *input.Tagging == *tc.expectedTagging
+			})).Return(&manager.UploadOutput{}, nil)
+
+			err := o.PutObject("bucket", "key", strings.NewReader("body"))
+
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestObjectExists(t *testing.T) {

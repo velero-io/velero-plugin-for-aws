@@ -74,11 +74,15 @@ type s3PresignInterface interface {
 	PresignGetObject(ctx context.Context, input *s3.GetObjectInput, optFns ...func(options *s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
+type s3UploaderInterface interface {
+	Upload(ctx context.Context, input *s3.PutObjectInput, optFns ...func(*manager.Uploader)) (*manager.UploadOutput, error)
+}
+
 type ObjectStore struct {
 	log                  logrus.FieldLogger
 	s3                   s3Interface
 	preSignS3            s3PresignInterface
-	s3Uploader           *manager.Uploader
+	s3Uploader           s3UploaderInterface
 	kmsKeyID             string
 	sseCustomerKey       string
 	sseCustomerKeyMd5    string
