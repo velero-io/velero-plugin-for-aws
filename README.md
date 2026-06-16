@@ -533,6 +533,24 @@ Additionally, the KMS key policy must allow the EC2 service to use the key:
 * The KMS key must be in the `Enabled` state
 * Without proper permissions, volume restoration will fail with `AccessDeniedException` or the volume will be created but immediately deleted by AWS
 
+## AWS Outposts Support for EBS Snapshots
+
+When using the `outpostArn` parameter in the `VolumeSnapshotLocation` configuration, Velero creates EBS snapshots and restores volumes on the specified [AWS Outpost](https://aws.amazon.com/outposts/) rather than in the parent AWS region.
+
+The Outpost ARN is resolved with the following priority:
+1. The ARN stored in the volume or snapshot metadata (set automatically by AWS when the resource was created on an Outpost)
+2. The `outpostArn` value configured in the `VolumeSnapshotLocation`
+
+This means that for volumes already residing on an Outpost, no additional configuration is needed — the Outpost ARN is detected automatically from the volume metadata.
+
+No additional IAM permissions are required beyond those already listed in [Set permissions for Velero](#Set-permissions-for-Velero).
+
+**Important notes:**
+* The `outpostArn` must be in the format `arn:aws:outposts:<region>:<account-id>:outpost/<outpost-id>`
+* The Outpost must be in the same AWS region specified in the `VolumeSnapshotLocation`
+* Local snapshots on Outposts are stored on the Outpost itself; ensure the Outpost has sufficient local storage capacity
+* See [volumesnapshotlocation.md][8] for full configuration reference
+
 
 [1]: #Create-S3-bucket
 [2]: #Set-permissions-for-Velero

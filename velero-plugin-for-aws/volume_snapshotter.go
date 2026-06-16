@@ -40,6 +40,7 @@ import (
 const (
 	regionKey      = "region"
 	ebsKmsKeyIDKey = "ebsKmsKeyId"
+	outpostArnKey  = "outpostArn"
 	ebsCSIDriver   = "ebs.csi.aws.com"
 )
 
@@ -52,6 +53,7 @@ type VolumeSnapshotter struct {
 	log         logrus.FieldLogger
 	ec2         *ec2.Client
 	ebsKmsKeyId string
+	outpostArn  string
 }
 
 func newVolumeSnapshotter(logger logrus.FieldLogger) *VolumeSnapshotter {
@@ -59,7 +61,7 @@ func newVolumeSnapshotter(logger logrus.FieldLogger) *VolumeSnapshotter {
 }
 
 func (b *VolumeSnapshotter) Init(config map[string]string) error {
-	if err := veleroplugin.ValidateVolumeSnapshotterConfigKeys(config, regionKey, credentialProfileKey, credentialsFileKey, enableSharedConfigKey, ebsKmsKeyIDKey); err != nil {
+	if err := veleroplugin.ValidateVolumeSnapshotterConfigKeys(config, regionKey, credentialProfileKey, credentialsFileKey, enableSharedConfigKey, ebsKmsKeyIDKey, outpostArnKey); err != nil {
 		return err
 	}
 
@@ -67,6 +69,7 @@ func (b *VolumeSnapshotter) Init(config map[string]string) error {
 	credentialProfile := config[credentialProfileKey]
 	credentialsFile := config[credentialsFileKey]
 	b.ebsKmsKeyId = config[ebsKmsKeyIDKey]
+	b.outpostArn = config[outpostArnKey]
 
 	if region == "" {
 		return errors.Errorf("missing %s in aws configuration", regionKey)
@@ -125,6 +128,15 @@ func (b *VolumeSnapshotter) CreateVolumeFromSnapshot(snapshotID, volumeType, vol
 		input.Iops = &iops32
 	}
 
+	// Use OutpostArn from the snapshot if available, otherwise use the configured one
+	if descSnapOutput.Snapshots[0].OutpostArn != nil && *descSnapOutput.Snapshots[0].OutpostArn != "" {
+		input.OutpostArn = descSnapOutput.Snapshots[0].OutpostArn
+		b.log.Infof("Restoring volume from snapshot %s on Outpost %s", snapshotID, *descSnapOutput.Snapshots[0].OutpostArn)
+	} else if b.outpostArn != "" {
+		input.OutpostArn = &b.outpostArn
+		b.log.Infof("Restoring volume from snapshot %s on configured Outpost %s", snapshotID, b.outpostArn)
+	}
+
 	output, err := b.ec2.CreateVolume(context.Background(), input)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -177,7 +189,7 @@ func (b *VolumeSnapshotter) CreateSnapshot(volumeID, volumeAZ string, tags map[s
 		return "", err
 	}
 
-	res, err := b.ec2.CreateSnapshot(context.Background(), &ec2.CreateSnapshotInput{
+	input := &ec2.CreateSnapshotInput{
 		VolumeId: &volumeID,
 		TagSpecifications: []types.TagSpecification{
 			{
@@ -185,7 +197,18 @@ func (b *VolumeSnapshotter) CreateSnapshot(volumeID, volumeAZ string, tags map[s
 				Tags:         getTags(tags, volumeInfo.Tags),
 			},
 		},
-	})
+	}
+
+	// Use OutpostArn from the volume if available, otherwise use the configured one
+	if volumeInfo.OutpostArn != nil && *volumeInfo.OutpostArn != "" {
+		input.OutpostArn = volumeInfo.OutpostArn
+		b.log.Infof("Creating snapshot for volume %s on Outpost %s", volumeID, *volumeInfo.OutpostArn)
+	} else if b.outpostArn != "" {
+		input.OutpostArn = &b.outpostArn
+		b.log.Infof("Creating snapshot for volume %s on configured Outpost %s", volumeID, b.outpostArn)
+	}
+
+	res, err := b.ec2.CreateSnapshot(context.Background(), input)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
