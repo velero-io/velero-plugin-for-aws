@@ -334,11 +334,28 @@ func readCustomerKeyFromSecret(secretRef string) (string, error) {
 }
 
 func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
+	input := o.buildPutObjectInput(bucket, key, body)
+
+	_, err := o.s3Uploader.Upload(context.Background(), input)
+
+	return errors.Wrapf(err, "error putting object %s", key)
+}
+
+// buildPutObjectInput constructs the PutObjectInput for an upload, applying
+// the ObjectStore's configured tagging, SSE, and checksum options. Each
+// optional field is only set when the corresponding config is non-empty —
+// some S3-compatible backends (notably Backblaze B2) reject requests that
+// carry these headers with empty values, e.g. an empty `x-amz-tagging`
+// header returns HTTP 400 "InvalidArgument: Unsupported header".
+func (o *ObjectStore) buildPutObjectInput(bucket, key string, body io.Reader) *s3.PutObjectInput {
 	input := &s3.PutObjectInput{
-		Bucket:  aws.String(bucket),
-		Key:     aws.String(key),
-		Body:    body,
-		Tagging: aws.String(o.tagging),
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   body,
+	}
+
+	if o.tagging != "" {
+		input.Tagging = aws.String(o.tagging)
 	}
 
 	switch {
@@ -361,9 +378,7 @@ func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
 		input.ChecksumAlgorithm = types.ChecksumAlgorithm(o.checksumAlg)
 	}
 
-	_, err := o.s3Uploader.Upload(context.Background(), input)
-
-	return errors.Wrapf(err, "error putting object %s", key)
+	return input
 }
 
 // ObjectExists checks if there is an object with the given key in the object storage bucket.
