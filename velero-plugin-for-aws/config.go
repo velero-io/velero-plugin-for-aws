@@ -92,6 +92,10 @@ func newS3Client(cfg aws.Config, url string, forcePathStyle bool) (*s3.Client, e
 	opts := []func(*s3.Options){
 		func(o *s3.Options) {
 			o.UsePathStyle = forcePathStyle
+			// Only calculate/validate checksums when explicitly requested.
+			// See https://github.com/velero-io/velero/issues/9951
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 		},
 	}
 	if url != "" {
