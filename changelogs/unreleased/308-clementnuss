@@ -1,0 +1,1 @@
+Fix S3 failures on backends that reject the `x-amz-checksum` header by only calculating/validating checksums when explicitly required.
