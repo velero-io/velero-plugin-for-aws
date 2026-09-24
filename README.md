@@ -30,13 +30,13 @@ Below is a listing of plugin versions and respective Velero versions that are co
 ## Non-AWS S3 compatible provider known issues with plugin v1.13.x (aws-sdk-go-v2):
 | Cloud Provider      |Notes|Velero Issue|Cloud Provider Issue|
 |-|-|-|-|
-|Google Cloud Storage|[Should use GCP plugin instead](https://github.com/vmware-tanzu/velero-plugin-for-gcp)||https://issuetracker.google.com/issues/256641357|
-|Net App|`operation error S3: PutObject, https response error StatusCode: 501, RequestID: , HostID: , api error NotImplemented: The s3 command you requested is not implemented.`|https://github.com/vmware-tanzu/velero/issues/7828 https://github.com/vmware-tanzu/velero/issues/8152|[Fixed in ONTAP Release 9.15.1P2.](https://github.com/vmware-tanzu/velero/issues/8152#issuecomment-2464471703:~:text=issue%20is%20fixed%20using%20latest%20version%20NetApp%20Release%209.15.1P2.) <br> [Fixed in Net App StorageGRID® Version 11.8.0.7](https://github.com/vmware-tanzu/velero/issues/7828#issuecomment-2507228050)|
-|Oracle||https://github.com/vmware-tanzu/velero/issues/8013||
-|IBM COS|checksumAlgorithm="" should work if [retention is not enabled](https://github.com/vmware-tanzu/velero/issues/7543#issuecomment-2225803682)|https://github.com/vmware-tanzu/velero/issues/7543||
+|Google Cloud Storage|[Should use GCP plugin instead](https://github.com/velero-io/velero-plugin-for-gcp)||https://issuetracker.google.com/issues/256641357|
+|Net App|`operation error S3: PutObject, https response error StatusCode: 501, RequestID: , HostID: , api error NotImplemented: The s3 command you requested is not implemented.`|https://github.com/velero-io/velero/issues/7828 https://github.com/velero-io/velero/issues/8152|[Fixed in ONTAP Release 9.15.1P2.](https://github.com/velero-io/velero/issues/8152#issuecomment-2464471703:~:text=issue%20is%20fixed%20using%20latest%20version%20NetApp%20Release%209.15.1P2.) <br> [Fixed in Net App StorageGRID® Version 11.8.0.7](https://github.com/velero-io/velero/issues/7828#issuecomment-2507228050)|
+|Oracle||https://github.com/velero-io/velero/issues/8013||
+|IBM COS|checksumAlgorithm="" should work if [retention is not enabled](https://github.com/velero-io/velero/issues/7543#issuecomment-2225803682)|https://github.com/velero-io/velero/issues/7543||
 |Hitachi Content Platform (HCP)||||
-|Cloudian||https://github.com/vmware-tanzu/velero/issues/8264||
-|Qumulo|not compatible with `x-id`, etc.|https://github.com/vmware-tanzu/velero/issues/8312||||
+|Cloudian||https://github.com/velero-io/velero/issues/8264||
+|Qumulo|not compatible with `x-id`, etc.|https://github.com/velero-io/velero/issues/8312||||
 |Ceph S3|checksumAlgorithm="" to avoid `api error XAmzContentSHA256Mismatch`||||
 |Backblaze B2|checksumAlgorithm="" to avoid `api error XAmzContentSHA256Mismatch`||||
 ## Filing issues
@@ -574,9 +574,9 @@ Additionally, the KMS key policy must allow the EC2 service to use the key:
 [15]: #create-s3-bucket
 [16]: #option-1-set-permissions-with-an-iam-user
 [17]: https://kubernetes.io/docs/concepts/configuration/secret/
-[101]: https://github.com/vmware-tanzu/velero-plugin-for-aws/workflows/Main%20CI/badge.svg
-[102]: https://github.com/vmware-tanzu/velero-plugin-for-aws/actions?query=workflow%3A"Main+CI"
-[103]: https://github.com/vmware-tanzu/velero/issues/new/choose
+[101]: https://github.com/velero-io/velero-plugin-for-aws/workflows/Main%20CI/badge.svg
+[102]: https://github.com/velero-io/velero-plugin-for-aws/actions?query=workflow%3A"Main+CI"
+[103]: https://github.com/velero-io/velero/issues/new/choose
 
 
 ## License

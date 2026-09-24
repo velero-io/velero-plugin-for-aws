@@ -16,7 +16,7 @@
 BIN ?= velero-plugin-for-aws
 
 # This repo's root import path (under GOPATH).
-PKG := github.com/vmware-tanzu/velero-plugin-for-aws
+PKG := github.com/velero-io/velero-plugin-for-aws
 
 # Where to push the docker image.
 REGISTRY ?= velero

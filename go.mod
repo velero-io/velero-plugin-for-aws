@@ -1,4 +1,4 @@
-module github.com/vmware-tanzu/velero-plugin-for-aws
+module github.com/velero-io/velero-plugin-for-aws
 
 go 1.25.0
 
