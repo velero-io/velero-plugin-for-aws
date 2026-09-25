@@ -183,7 +183,18 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		return errors.WithStack(err)
 	}
 	o.s3 = client
-	o.s3Uploader = manager.NewUploader(client)
+	// The transfer manager keeps its OWN RequestChecksumCalculation (default
+	// WhenSupported) and does not consult the client's: without this it
+	// forces a CRC32 trailer on every multipart part regardless of the
+	// client option / AWS_REQUEST_CHECKSUM_CALCULATION, and S3-compatible
+	// backends that do not implement aws-chunked trailing checksums reject
+	// UploadPart (e.g. 501 NotImplemented "AWS chunked encoding not
+	// supported"), which surfaces to velero as a bare EOF and fails every
+	// backup whose tarball exceeds the part size. Inherit the client's
+	// mode so the checksumAlgorithm="" contract covers multipart too.
+	o.s3Uploader = manager.NewUploader(client, func(u *manager.Uploader) {
+		u.RequestChecksumCalculation = client.Options().RequestChecksumCalculation
+	})
 	o.kmsKeyID = kmsKeyID
 	o.serverSideEncryption = serverSideEncryption
 	o.tagging = tagging
