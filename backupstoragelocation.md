@@ -151,4 +151,18 @@ spec:
     #
     # Optional (defaults to "CRC32")
     checksumAlgorithm: "CRC32"
+
+    # The S3 storage class of the objects the plugin uploads, for example
+    # "STANDARD_IA", "ONEZONE_IA", "INTELLIGENT_TIERING" or "GLACIER_IR".
+    # It applies to the backup and restore files Velero stores through this
+    # plugin (resource tarballs, logs and metadata). Data that file system backups
+    # and the data mover write to the backup repository is not uploaded through
+    # the plugin and keeps the bucket's default storage class.
+    # "GLACIER" and "DEEP_ARCHIVE" are rejected, because Velero has to read the
+    # objects back for backup sync and restores.
+    # Infrequent-access classes have a minimum billable object size and storage
+    # duration, which also apply to the small metadata files.
+    #
+    # Optional (defaults to empty "", which uses the bucket's default storage class)
+    storageClass: ""
 ```

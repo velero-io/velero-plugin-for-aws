@@ -450,6 +450,7 @@ func TestBuildPutObjectInput(t *testing.T) {
 		expectSSECustomerAlgorithm *string
 		expectSSECustomerKey       *string
 		expectSSECustomerKeyMD5    *string
+		expectStorageClass         types.StorageClass
 	}{
 		{
 			// Regression guard: empty tagging config must NOT set
@@ -493,6 +494,11 @@ func TestBuildPutObjectInput(t *testing.T) {
 			store:     &ObjectStore{log: newLogger(), serverSideEncryption: "AES256"},
 			expectSSE: types.ServerSideEncryptionAes256,
 		},
+		{
+			name:               "storageClass set: StorageClass is set",
+			store:              &ObjectStore{log: newLogger(), storageClass: "STANDARD_IA"},
+			expectStorageClass: types.StorageClassStandardIa,
+		},
 	}
 
 	for _, tc := range tests {
@@ -510,8 +516,20 @@ func TestBuildPutObjectInput(t *testing.T) {
 			assert.Equal(t, tc.expectSSECustomerAlgorithm, input.SSECustomerAlgorithm, "SSECustomerAlgorithm mismatch")
 			assert.Equal(t, tc.expectSSECustomerKey, input.SSECustomerKey, "SSECustomerKey mismatch")
 			assert.Equal(t, tc.expectSSECustomerKeyMD5, input.SSECustomerKeyMD5, "SSECustomerKeyMD5 mismatch")
+			assert.Equal(t, tc.expectStorageClass, input.StorageClass, "StorageClass mismatch")
 		})
 	}
+}
+
+func TestValidateStorageClass(t *testing.T) {
+	for _, valid := range []string{"STANDARD", "STANDARD_IA", "ONEZONE_IA", "INTELLIGENT_TIERING", "GLACIER_IR"} {
+		assert.NoError(t, validateStorageClass(valid), valid)
+	}
+
+	assert.ErrorContains(t, validateStorageClass("standard_ia"), "invalid storageClass")
+	assert.ErrorContains(t, validateStorageClass("COLD"), "invalid storageClass")
+	assert.ErrorContains(t, validateStorageClass("GLACIER"), "is not supported")
+	assert.ErrorContains(t, validateStorageClass("DEEP_ARCHIVE"), "is not supported")
 }
 
 func TestWrapSSECError(t *testing.T) {

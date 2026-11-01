@@ -62,6 +62,7 @@ const (
 	enableSharedConfigKey          = "enableSharedConfig"
 	taggingKey                     = "tagging"
 	checksumAlgKey                 = "checksumAlgorithm"
+	storageClassKey                = "storageClass"
 )
 
 type s3Interface interface {
@@ -87,6 +88,7 @@ type ObjectStore struct {
 	serverSideEncryption string
 	tagging              string
 	checksumAlg          string
+	storageClass         string
 }
 
 func newObjectStore(logger logrus.FieldLogger) *ObjectStore {
@@ -110,6 +112,7 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		enableSharedConfigKey,
 		taggingKey,
 		checksumAlgKey,
+		storageClassKey,
 	); err != nil {
 		return err
 	}
@@ -248,6 +251,31 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		o.checksumAlg = alg
 	} else {
 		o.checksumAlg = string(types.ChecksumAlgorithmCrc32)
+	}
+	if storageClass := config[storageClassKey]; storageClass != "" {
+		if err := validateStorageClass(storageClass); err != nil {
+			return err
+		}
+		o.storageClass = storageClass
+	}
+	return nil
+}
+
+// archiveStorageClasses keep objects in an archive tier that has to be
+// restored before the objects can be read again. Velero reads backup metadata
+// back from the bucket (backup sync, restores, downloads), so they can't be used.
+var archiveStorageClasses = []types.StorageClass{
+	types.StorageClassGlacier,
+	types.StorageClassDeepArchive,
+}
+
+func validateStorageClass(storageClass string) error {
+	typed := types.StorageClass(storageClass)
+	if !slices.Contains(typed.Values(), typed) {
+		return errors.Errorf("invalid %s: %s", storageClassKey, storageClass)
+	}
+	if slices.Contains(archiveStorageClasses, typed) {
+		return errors.Errorf("%s %s is not supported: objects in it can't be read without restoring them first", storageClassKey, storageClass)
 	}
 	return nil
 }
@@ -410,6 +438,10 @@ func (o *ObjectStore) buildPutObjectInput(bucket, key string, body io.Reader) *s
 
 	if o.checksumAlg != "" {
 		input.ChecksumAlgorithm = types.ChecksumAlgorithm(o.checksumAlg)
+	}
+
+	if o.storageClass != "" {
+		input.StorageClass = types.StorageClass(o.storageClass)
 	}
 
 	return input
