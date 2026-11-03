@@ -39,7 +39,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	veleroplugin "github.com/vmware-tanzu/velero/pkg/plugin/framework"
+	veleroplugin "github.com/velero-io/velero/pkg/plugin/framework"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
