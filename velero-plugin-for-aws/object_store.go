@@ -269,12 +269,10 @@ var archiveStorageClasses = []types.StorageClass{
 	types.StorageClassDeepArchive,
 }
 
+// validateStorageClass only rejects the archive classes. Other values are passed
+// through as is, so S3-compatible backends can use their own storage classes.
 func validateStorageClass(storageClass string) error {
-	typed := types.StorageClass(storageClass)
-	if !slices.Contains(typed.Values(), typed) {
-		return errors.Errorf("invalid %s: %s", storageClassKey, storageClass)
-	}
-	if slices.Contains(archiveStorageClasses, typed) {
+	if slices.Contains(archiveStorageClasses, types.StorageClass(strings.ToUpper(storageClass))) {
 		return errors.Errorf("%s %s is not supported: objects in it can't be read without restoring them first", storageClassKey, storageClass)
 	}
 	return nil

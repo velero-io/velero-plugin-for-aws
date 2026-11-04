@@ -522,14 +522,14 @@ func TestBuildPutObjectInput(t *testing.T) {
 }
 
 func TestValidateStorageClass(t *testing.T) {
-	for _, valid := range []string{"STANDARD", "STANDARD_IA", "ONEZONE_IA", "INTELLIGENT_TIERING", "GLACIER_IR"} {
+	// Custom classes of S3-compatible backends, such as Ceph RGW placement targets, pass through.
+	for _, valid := range []string{"STANDARD", "STANDARD_IA", "ONEZONE_IA", "INTELLIGENT_TIERING", "GLACIER_IR", "COLD"} {
 		assert.NoError(t, validateStorageClass(valid), valid)
 	}
 
-	assert.ErrorContains(t, validateStorageClass("standard_ia"), "invalid storageClass")
-	assert.ErrorContains(t, validateStorageClass("COLD"), "invalid storageClass")
-	assert.ErrorContains(t, validateStorageClass("GLACIER"), "is not supported")
-	assert.ErrorContains(t, validateStorageClass("DEEP_ARCHIVE"), "is not supported")
+	for _, archive := range []string{"GLACIER", "DEEP_ARCHIVE", "glacier"} {
+		assert.ErrorContains(t, validateStorageClass(archive), "is not supported", archive)
+	}
 }
 
 func TestWrapSSECError(t *testing.T) {

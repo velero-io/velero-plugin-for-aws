@@ -158,6 +158,8 @@ spec:
     # plugin (resource tarballs, logs and metadata). Data that file system backups
     # and the data mover write to the backup repository is not uploaded through
     # the plugin and keeps the bucket's default storage class.
+    # Other values, such as the custom storage classes of S3-compatible
+    # backends, are passed through as is.
     # "GLACIER" and "DEEP_ARCHIVE" are rejected, because Velero has to read the
     # objects back for backup sync and restores.
     # Infrequent-access classes have a minimum billable object size and storage
