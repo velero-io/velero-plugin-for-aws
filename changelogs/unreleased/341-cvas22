@@ -1,0 +1,1 @@
+Add a `storageClass` backup storage location option that sets the S3 storage class of the objects the plugin uploads.
