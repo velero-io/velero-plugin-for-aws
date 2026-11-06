@@ -20,12 +20,10 @@ Below is a listing of plugin versions and respective Velero versions that are co
 
 | Plugin Version | Velero Version |
 |----------------|----------------|
+| v1.15.x        | v1.19.x        |
 | v1.14.x        | v1.18.x        |
 | v1.13.x        | v1.17.x        |
 | v1.12.x        | v1.16.x        |
-| v1.11.x        | v1.15.x        |
-| v1.10.x        | v1.14.x        |
-| v1.9.x         | v1.13.x        |
 
 ## Non-AWS S3 compatible provider known issues with plugin v1.13.x (aws-sdk-go-v2):
 | Cloud Provider      |Notes|Velero Issue|Cloud Provider Issue|
@@ -281,7 +279,7 @@ Install Velero, including all prerequisites, into the cluster and start the depl
 ```bash
 velero install \
     --provider aws \
-    --plugins velero/velero-plugin-for-aws:v1.13.0 \
+    --plugins velero/velero-plugin-for-aws:v1.15.0 \
     --bucket $BUCKET \
     --backup-location-config region=$REGION \
     --snapshot-location-config region=$REGION \
@@ -293,7 +291,7 @@ velero install \
 ```bash
 velero install \
     --provider aws \
-    --plugins velero/velero-plugin-for-aws:v1.13.0 \
+    --plugins velero/velero-plugin-for-aws:v1.15.0 \
     --bucket $BUCKET \
     --backup-location-config region=$REGION \
     --snapshot-location-config region=$REGION \
