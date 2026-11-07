@@ -216,8 +216,8 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/velero-io/velero v0.0.0-20261104073004-8eaef0e9b87d h1:TzvDDMwwfs5h6Kwdre8oBO/5GyQrmZztJTme/jOSWYo=
-github.com/velero-io/velero v0.0.0-20261104073004-8eaef0e9b87d/go.mod h1:Xz8eaWwvbjC8DxCsM2kV2rY3PgOprKzZNULKWrkFnmE=
+github.com/velero-io/velero v1.19.0-rc.1 h1:3ZILgbTCjmDF0c/KfnFqwrU8LACNeWg77/LlmOg7ark=
+github.com/velero-io/velero v1.19.0-rc.1/go.mod h1:INyLyVIx+l+hsJ2S9MRSYrugCghPoawRfdZ+RO2uBbY=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

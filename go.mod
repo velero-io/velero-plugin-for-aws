@@ -2,6 +2,8 @@ module github.com/velero-io/velero-plugin-for-aws
 
 go 1.27.0
 
+toolchain go1.27.3
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.12
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
@@ -13,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/velero-io/velero v0.0.0-20261104073004-8eaef0e9b87d
+	github.com/velero-io/velero v1.19.0-rc.1
 	k8s.io/api v0.36.1
 	k8s.io/apimachinery v0.36.1
 	k8s.io/client-go v0.36.1
