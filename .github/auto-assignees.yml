@@ -1,28 +1,25 @@
 ---
-# This assigns a PR to its author
+# Auto-assign configuration for kentaro-m/auto-assign-action v2, run via
+# velero-io/velero's reusable auto_assign_prs workflow. Assigns the PR to
+# its author and requests review from two individual maintainers — the
+# same behavior the removed necojackarc/auto-request-review job provided.
+# Note the schema: kentaro-m ignores the old `reviewers.defaults`/`groups`/
+# `options.*` keys that necojackarc used.
 addAssignees: author
-
-reviewers:
-  # The default reviewers
-  defaults:
-    - maintainers
-
-  groups:
-    maintainers:
-      - sseago
-      - reasonerjt
-      - ywk253100
-      - blackpiglet
-      - shubham-pampattiwar
-      - kaovilai
-      - lyndon-li
-      - anshulahuja98
-
-options:
-  ignore_draft: true
-  ignored_keywords:
-    - WIP
-    - wip
-    - DO NOT MERGE
-  enable_group_assignment: true
-  number_of_reviewers: 2
+addReviewers: true
+numberOfReviewers: 2
+useReviewGroups: true
+reviewGroups:
+  maintainers:
+    - sseago
+    - reasonerjt
+    - ywk253100
+    - blackpiglet
+    - shubham-pampattiwar
+    - kaovilai
+    - lyndon-li
+    - anshulahuja98
+skipKeywords:
+  - WIP
+  - wip
+  - DO NOT MERGE
