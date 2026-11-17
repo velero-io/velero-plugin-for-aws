@@ -2,7 +2,7 @@ module github.com/velero-io/velero-plugin-for-aws
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.12
