@@ -23,7 +23,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	smithy "github.com/aws/smithy-go"
@@ -283,8 +284,7 @@ func TestNewS3UploaderInheritsRequestChecksumCalculation(t *testing.T) {
 				o.RequestChecksumCalculation = tc.mode
 			})
 
-			uploader := newS3Uploader(client)
-			assert.Equal(t, tc.mode, uploader.RequestChecksumCalculation)
+			assert.Equal(t, tc.mode, uploaderOptions(client).RequestChecksumCalculation)
 		})
 	}
 
@@ -296,13 +296,23 @@ func TestNewS3UploaderInheritsRequestChecksumCalculation(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, aws.RequestChecksumCalculationWhenRequired, client.Options().RequestChecksumCalculation)
 
-		uploader := newS3Uploader(client)
-		assert.Equal(t, aws.RequestChecksumCalculationWhenRequired, uploader.RequestChecksumCalculation)
-
-		// The transfer manager's own default differs from the client's, which
-		// is why the uploader has to inherit it explicitly.
-		assert.Equal(t, aws.RequestChecksumCalculationWhenSupported, manager.NewUploader(client).RequestChecksumCalculation)
+		assert.Equal(t, aws.RequestChecksumCalculationWhenRequired, uploaderOptions(client).RequestChecksumCalculation)
 	})
+}
+
+// uploaderOptions applies the plugin's transfer manager option function to a
+// zero Options and returns the result. transfermanager.Client keeps its
+// options unexported and exposes no accessor, so this option function is the
+// only surface available to assert on.
+//
+// Deliberately no defaulting pass: if newS3UploaderOptions ever stops setting
+// RequestChecksumCalculation the value stays Unset, which matches no expected
+// mode and fails every caller. Applying transfermanager's WhenSupported
+// default here would let that regression pass unnoticed.
+func uploaderOptions(client *s3.Client) transfermanager.Options {
+	var opts transfermanager.Options
+	newS3UploaderOptions(client)(&opts)
+	return opts
 }
 
 func TestCreateSignedURL(t *testing.T) {
@@ -439,21 +449,21 @@ func TestCreateSignedURL_NoSSECWhenNotConfigured(t *testing.T) {
 	assert.Equal(t, "https://example.com/signed", url)
 }
 
-func TestBuildPutObjectInput(t *testing.T) {
+func TestBuildUploadObjectInput(t *testing.T) {
 	tests := []struct {
 		name                       string
 		store                      *ObjectStore
 		expectTagging              *string
-		expectChecksumAlg          types.ChecksumAlgorithm
-		expectSSE                  types.ServerSideEncryption
-		expectSSEKMSKeyId          *string
+		expectChecksumAlg          tmtypes.ChecksumAlgorithm
+		expectSSE                  tmtypes.ServerSideEncryption
+		expectSSEKMSKeyID          *string
 		expectSSECustomerAlgorithm *string
 		expectSSECustomerKey       *string
 		expectSSECustomerKeyMD5    *string
 	}{
 		{
 			// Regression guard: empty tagging config must NOT set
-			// PutObjectInput.Tagging. Passing aws.String("") here causes
+			// UploadObjectInput.Tagging. Passing aws.String("") here causes
 			// the SDK to serialize an empty `x-amz-tagging` header that
 			// Backblaze B2 (and other S3-compatible backends) reject with
 			// HTTP 400 InvalidArgument "Unsupported header".
@@ -469,13 +479,13 @@ func TestBuildPutObjectInput(t *testing.T) {
 		{
 			name:              "checksumAlgorithm CRC32: ChecksumAlgorithm is set",
 			store:             &ObjectStore{log: newLogger(), checksumAlg: "CRC32"},
-			expectChecksumAlg: types.ChecksumAlgorithmCrc32,
+			expectChecksumAlg: tmtypes.ChecksumAlgorithmCrc32,
 		},
 		{
 			name:              "kmsKeyID set: SSE switches to aws:kms with the key ID",
 			store:             &ObjectStore{log: newLogger(), kmsKeyID: "arn:aws:kms:us-east-1:123:key/abc"},
 			expectSSE:         "aws:kms",
-			expectSSEKMSKeyId: aws.String("arn:aws:kms:us-east-1:123:key/abc"),
+			expectSSEKMSKeyID: aws.String("arn:aws:kms:us-east-1:123:key/abc"),
 		},
 		{
 			name: "sseCustomerKey set: SSE-C fields are populated",
@@ -491,13 +501,13 @@ func TestBuildPutObjectInput(t *testing.T) {
 		{
 			name:      "serverSideEncryption set without kms/sse-c: ServerSideEncryption is set",
 			store:     &ObjectStore{log: newLogger(), serverSideEncryption: "AES256"},
-			expectSSE: types.ServerSideEncryptionAes256,
+			expectSSE: tmtypes.ServerSideEncryptionAes256,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			input := tc.store.buildPutObjectInput("bucket", "key", nil)
+			input := tc.store.buildUploadObjectInput("bucket", "key", nil)
 
 			require.NotNil(t, input)
 			assert.Equal(t, aws.String("bucket"), input.Bucket)
@@ -506,7 +516,7 @@ func TestBuildPutObjectInput(t *testing.T) {
 			assert.Equal(t, tc.expectTagging, input.Tagging, "Tagging mismatch")
 			assert.Equal(t, tc.expectChecksumAlg, input.ChecksumAlgorithm, "ChecksumAlgorithm mismatch")
 			assert.Equal(t, tc.expectSSE, input.ServerSideEncryption, "ServerSideEncryption mismatch")
-			assert.Equal(t, tc.expectSSEKMSKeyId, input.SSEKMSKeyId, "SSEKMSKeyId mismatch")
+			assert.Equal(t, tc.expectSSEKMSKeyID, input.SSEKMSKeyID, "SSEKMSKeyID mismatch")
 			assert.Equal(t, tc.expectSSECustomerAlgorithm, input.SSECustomerAlgorithm, "SSECustomerAlgorithm mismatch")
 			assert.Equal(t, tc.expectSSECustomerKey, input.SSECustomerKey, "SSECustomerKey mismatch")
 			assert.Equal(t, tc.expectSSECustomerKeyMD5, input.SSECustomerKeyMD5, "SSECustomerKeyMD5 mismatch")

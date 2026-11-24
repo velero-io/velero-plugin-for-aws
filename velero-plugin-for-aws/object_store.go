@@ -31,7 +31,23 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	// NOTE: this whole module is deprecated at the go.mod level in favour of
+	// feature/s3/transfermanager, so `go list -m -u` reports it as such. It
+	// is retained deliberately and solely for GetBucketRegion, which
+	// transfermanager does not provide and for which AWS has offered neither
+	// a replacement nor a sunset date.
+	// See https://github.com/aws/aws-sdk-go-v2/discussions/3306
+	//
+	// s3.HeadBucket + HeadBucketOutput.BucketRegion is not a substitute:
+	// probing a bucket from the wrong region returns 301/403 with the region
+	// in a header but no output struct, so the field is unreachable.
+	// GetBucketRegion reads that header via middleware regardless of status.
+	// Dropping this dependency means vendoring ~60 lines of that middleware;
+	// velero core carries the same import for the same reason
+	// (pkg/repository/config/aws.go).
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	smithy "github.com/aws/smithy-go"
@@ -79,7 +95,7 @@ type ObjectStore struct {
 	log                  logrus.FieldLogger
 	s3                   s3Interface
 	preSignS3            s3PresignInterface
-	s3Uploader           *manager.Uploader
+	s3Uploader           *transfermanager.Client
 	kmsKeyID             string
 	sseCustomerKey       string
 	sseCustomerKeyMd5    string
@@ -252,15 +268,24 @@ func (o *ObjectStore) Init(config map[string]string) error {
 	return nil
 }
 
-// newS3Uploader builds the multipart transfer manager for client. The
-// manager keeps its own RequestChecksumCalculation (default WhenSupported)
-// and does not inherit the client's, so without this multipart UploadPart
-// calls would still send trailing checksums that some S3-compatible backends
-// reject. See https://github.com/velero-io/velero/issues/10543
-func newS3Uploader(client *s3.Client) *manager.Uploader {
-	return manager.NewUploader(client, func(u *manager.Uploader) {
-		u.RequestChecksumCalculation = client.Options().RequestChecksumCalculation
-	})
+// newS3UploaderOptions returns the transfer manager options for client. The
+// transfer manager keeps its own RequestChecksumCalculation (default
+// WhenSupported) and does not inherit the client's, so without this multipart
+// UploadPart calls would still send trailing checksums that some S3-compatible
+// backends reject. See https://github.com/velero-io/velero/issues/10543
+//
+// This is split out from newS3Uploader because transfermanager.Client stores
+// its options unexported and exposes no accessor, so the options function is
+// the only surface a test can assert against.
+func newS3UploaderOptions(client *s3.Client) func(*transfermanager.Options) {
+	return func(o *transfermanager.Options) {
+		o.RequestChecksumCalculation = client.Options().RequestChecksumCalculation
+	}
+}
+
+// newS3Uploader builds the multipart transfer manager for client.
+func newS3Uploader(client *s3.Client) *transfermanager.Client {
+	return transfermanager.New(client, newS3UploaderOptions(client))
 }
 
 func validChecksumAlg(alg string) bool {
@@ -366,23 +391,23 @@ func (o *ObjectStore) wrapSSECError(err error, operation string) error {
 }
 
 func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
-	input := o.buildPutObjectInput(bucket, key, body)
+	input := o.buildUploadObjectInput(bucket, key, body)
 
-	_, err := o.s3Uploader.Upload(context.Background(), input)
+	_, err := o.s3Uploader.UploadObject(context.Background(), input)
 	if err != nil {
 		return o.wrapSSECError(errors.Wrapf(err, "error putting object %s", key), "PutObject")
 	}
 	return nil
 }
 
-// buildPutObjectInput constructs the PutObjectInput for an upload, applying
+// buildUploadObjectInput constructs the UploadObjectInput for an upload, applying
 // the ObjectStore's configured tagging, SSE, and checksum options. Each
 // optional field is only set when the corresponding config is non-empty —
 // some S3-compatible backends (notably Backblaze B2) reject requests that
 // carry these headers with empty values, e.g. an empty `x-amz-tagging`
 // header returns HTTP 400 "InvalidArgument: Unsupported header".
-func (o *ObjectStore) buildPutObjectInput(bucket, key string, body io.Reader) *s3.PutObjectInput {
-	input := &s3.PutObjectInput{
+func (o *ObjectStore) buildUploadObjectInput(bucket, key string, body io.Reader) *transfermanager.UploadObjectInput {
+	input := &transfermanager.UploadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 		Body:   body,
@@ -397,7 +422,7 @@ func (o *ObjectStore) buildPutObjectInput(bucket, key string, body io.Reader) *s
 	// algorithm of "aws:kms"
 	case o.kmsKeyID != "":
 		input.ServerSideEncryption = "aws:kms"
-		input.SSEKMSKeyId = &o.kmsKeyID
+		input.SSEKMSKeyID = &o.kmsKeyID
 	// if sseCustomerKey is not empty, assume SSE-C encryption with AES256 algorithm
 	case o.sseCustomerKey != "":
 		input.SSECustomerAlgorithm = aws.String("AES256")
@@ -405,11 +430,11 @@ func (o *ObjectStore) buildPutObjectInput(bucket, key string, body io.Reader) *s
 		input.SSECustomerKeyMD5 = &o.sseCustomerKeyMd5
 	// otherwise, use the SSE algorithm specified, if any
 	case o.serverSideEncryption != "":
-		input.ServerSideEncryption = types.ServerSideEncryption(o.serverSideEncryption)
+		input.ServerSideEncryption = tmtypes.ServerSideEncryption(o.serverSideEncryption)
 	}
 
 	if o.checksumAlg != "" {
-		input.ChecksumAlgorithm = types.ChecksumAlgorithm(o.checksumAlg)
+		input.ChecksumAlgorithm = tmtypes.ChecksumAlgorithm(o.checksumAlg)
 	}
 
 	return input
