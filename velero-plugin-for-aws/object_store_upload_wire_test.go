@@ -212,3 +212,33 @@ func TestPutObjectMultipartPreservesAPIError(t *testing.T) {
 	assert.Contains(t, err.Error(), "April 2026",
 		"SSE-C guidance from wrapSSECError was lost on the multipart path")
 }
+
+// TestPutObjectMultipartExplicitChecksumSent pins the other half of the
+// checksum contract: Init defaults checksumAlg to CRC32, and an explicitly
+// configured algorithm is honored regardless of
+// RequestChecksumCalculationWhenRequired, so UploadPart requests DO carry
+// the checksum. TestPutObjectMultipartOmitsTrailingChecksum covers only the
+// empty-algorithm configuration; this one covers the production default.
+func TestPutObjectMultipartExplicitChecksumSent(t *testing.T) {
+	store, fake := newFakeObjectStore(t)
+	store.checksumAlg = "CRC32" // Init default when checksumAlgorithm is unset
+
+	require.NoError(t, store.PutObject("bucket", "key", &zeroReader{remaining: 17 << 20}))
+
+	parts := fake.uploadParts()
+	require.NotEmpty(t, parts, "expected a multipart upload")
+
+	for i, p := range parts {
+		hasChecksum := false
+		if strings.Contains(p.Header.Get("x-amz-trailer"), "checksum") {
+			hasChecksum = true
+		}
+		for name := range p.Header {
+			if checksumHeader.MatchString(name) {
+				hasChecksum = true
+			}
+		}
+		assert.True(t, hasChecksum,
+			"UploadPart %d should carry the explicitly configured CRC32 checksum", i)
+	}
+}

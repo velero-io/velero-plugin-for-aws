@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"os"
 	"slices"
@@ -31,21 +30,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	// NOTE: this whole module is deprecated at the go.mod level in favour of
-	// feature/s3/transfermanager, so `go list -m -u` reports it as such. It
-	// is retained deliberately and solely for GetBucketRegion, which
-	// transfermanager does not provide and for which AWS has offered neither
-	// a replacement nor a sunset date.
-	// See https://github.com/aws/aws-sdk-go-v2/discussions/3306
-	//
-	// s3.HeadBucket + HeadBucketOutput.BucketRegion is not a substitute:
-	// probing a bucket from the wrong region returns 301/403 with the region
-	// in a header but no output struct, so the field is unreachable.
-	// GetBucketRegion reads that header via middleware regardless of status.
-	// Dropping this dependency means vendoring ~60 lines of that middleware;
-	// velero core carries the same import for the same reason
-	// (pkg/repository/config/aws.go).
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -175,21 +159,18 @@ func (o *ObjectStore) Init(config map[string]string) error {
 	}
 
 	// AWS (not an alternate S3-compatible API) and region not
-	// explicitly specified: determine the bucket's region
-	// GetBucketRegion will attempt to get the region for a bucket using the
-	// client's configured region to determine which AWS partition to perform the query on.
+	// explicitly specified: determine the bucket's region.
+	// getBucketRegion probes the bucket with a us-east-1 partition hint
+	// and returns an error if the region cannot be determined.
 	if s3URL == "" && region == "" {
 		regionClient, err := newS3Client(cfg, s3URL, s3ForcePathStyle)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		region, err = manager.GetBucketRegion(context.Background(), regionClient, bucket, func(o *s3.Options) { o.Region = "us-east-1" })
+		region, err = getBucketRegion(context.Background(), regionClient, bucket, func(o *s3.Options) { o.Region = "us-east-1" })
 		if err != nil {
 			o.log.Errorf("Failed to determine bucket's region bucket: %s, error: %v", bucket, err)
 			return err
-		}
-		if region == "" {
-			return fmt.Errorf("unable to determine bucket's region, bucket: %s", bucket)
 		}
 		cfg.Region = region
 	}
